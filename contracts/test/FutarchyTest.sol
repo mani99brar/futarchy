@@ -288,8 +288,8 @@ contract FutarchyFactoryTest is Test {
 
     function test_maxMarketSize() public {
         // Simulate the stored length of proposals (slot 0)
-        uint256 low = 100_000;
-        uint256 high = 110_000;
+        uint256 low = 1_000;
+        uint256 high = 100_000;
         uint256 best = 0;
         while(low<high){
             uint256 len = (low + high) / 2;
@@ -308,18 +308,19 @@ contract FutarchyFactoryTest is Test {
                 abi.encodeWithSelector(consumer.process.selector, len - 1)
             );
             uint256 gUsed = gBefore - gasleft();
-
             if (ok) {
+                uint256 gasLimit = 30_000_000; // block gas limit
+                if(gUsed> gasLimit){
+                    high = len - 1;
+                    console.log(" OOG size:", len);
+                } else{
                 // it succeeded under the block gas limit
                 best = len;
                 console.log(" OK size:", len, " gas:", gUsed);
                 low = len + 1;
-            } else {
-                // it OOG’d
-                console.log(" OOG size:", len);
-                high = len - 1;
-            }
-            low = len + 1;
+                }
+                
+            } 
         }
         console.log("Highest possible size:", best);
     }
