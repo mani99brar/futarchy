@@ -50,7 +50,7 @@ contract FutarchyFactoryTest is Test {
     uint8 internal constant OUTCOMES_COUNT = 4;
 
     function setUp() public {
-        uint256 forkId = vm.createFork("https://gnosis-pokt.nodies.app");
+        uint256 forkId = vm.createFork("https://rpc.gnosischain.com");
         vm.selectFork(forkId);
 
         FutarchyProposal proposal = new FutarchyProposal();
