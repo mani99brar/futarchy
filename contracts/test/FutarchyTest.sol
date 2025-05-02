@@ -286,6 +286,44 @@ contract FutarchyFactoryTest is Test {
         }
     }
 
+    function test_maxMarketSize() public {
+        // Simulate the stored length of proposals (slot 0)
+        uint256 low = 100_000;
+        uint256 high = 110_000;
+        uint256 best = 0;
+        while(low<high){
+            uint256 len = (low + high) / 2;
+            vm.store(
+                address(futarchyFactory),
+                bytes32(uint256(0)), // proposals.length is at storage slot 0
+                bytes32(len)
+            );
+
+            MarketConsumer consumer = new MarketConsumer(
+                address(futarchyFactory)
+            );
+
+            uint256 gBefore = gasleft();
+            (bool ok, ) = address(consumer).call(
+                abi.encodeWithSelector(consumer.process.selector, len - 1)
+            );
+            uint256 gUsed = gBefore - gasleft();
+
+            if (ok) {
+                // it succeeded under the block gas limit
+                best = len;
+                console.log(" OK size:", len, " gas:", gUsed);
+                low = len + 1;
+            } else {
+                // it OOG’d
+                console.log(" OOG size:", len);
+                high = len - 1;
+            }
+            low = len + 1;
+        }
+        console.log("Highest possible size:", best);
+    }
+
     /// @notice Compare gas of allMarkets() with simulated proposals vs real proposals, for small N.
     function test_compareGas_simulate_vs_real() public {
         // small sizes to test
