@@ -50,7 +50,7 @@ contract FutarchyFactoryTest is Test {
     uint8 internal constant OUTCOMES_COUNT = 4;
 
     function setUp() public {
-        uint256 forkId = vm.createFork("https://gnosis.drpc.org");
+        uint256 forkId = vm.createFork("https://gnosis-pokt.nodies.app");
         vm.selectFork(forkId);
 
         FutarchyProposal proposal = new FutarchyProposal();
@@ -267,9 +267,6 @@ contract FutarchyFactoryTest is Test {
     function test_processMarket_gas_growth() public {
         // Simulate the stored length of proposals (slot 0)
         for (uint i = 1; i <100 ; i = i * 2) {
-            if (i > 100) {
-                i = 100;
-            }
             uint256 len = i;
             vm.store(
                 address(futarchyFactory),
